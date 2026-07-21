@@ -7,24 +7,29 @@ FileHandlerUI <- function(id) {
   mimeTypes <- c("CSV" = "csv", "Shape File" = "shp", "GeoJSON" = "geojson")
 
   sidebar = sidebar(
+    title = "File Tools",
     width = "25%",
-
-    selectInput(ns("fileType"), "Select File Type", choices = mimeTypes),
-    layout_columns(
-      fileInput(ns("files"), NULL, accept = onlyFiles, multiple = FALSE),
-      actionButton(ns("uploadBtn"), "Upload", disabled = TRUE),
-      col_widths = c(8, 4)
-    ),
-
-    uiOutput(ns("fileOptions"))
+    accordion(
+      id = ns("accordion"),
+      accordion_panel(
+        "Upload Files",
+        selectInput(ns("fileType"), "Select File Type", choices = mimeTypes),
+        layout_columns(
+          fileInput(ns("files"), NULL, accept = onlyFiles, multiple = FALSE),
+          actionButton(ns("uploadBtn"), "Upload", disabled = TRUE),
+          col_widths = c(8, 4)
+        ),
+      ),
+      accordion_panel("Select Columns to Keep", value = "selcols"),
+      accordion_panel("Convert to Sf Class", value = "convertsf")
+    )
   )
 
-  layout_sidebar(sidebar = sidebar, card(DTOutput(ns("dataPreview"))))
+  layout_sidebar(sidebar = sidebar, main = card(DTOutput(ns("dataPreview"))))
 }
 
 ## module Server
 ## =========================================================================
-
 FileHandlerServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     ns <- session[["ns"]]
@@ -33,6 +38,9 @@ FileHandlerServer <- function(id) {
     loadedData <- reactiveVal(NULL)
     cleanedData <- reactiveVal(NULL)
     fileName <- reactiveVal(NULL)
+
+    # fallback dataset
+    loadedData(testData)
 
     # enable upload btn when a file uploaded
     observe({
@@ -62,55 +70,98 @@ FileHandlerServer <- function(id) {
           loadedFile <- ReadFile(filePath, selectedType)
 
           loadedData(loadedFile)
-          showNotification("File processed successfully!", type = "message")
+          showNotification(
+            "File processed successfully!",
+            type = "message",
+            session = session
+          )
         },
         error = function(e) {
-          showNotification(ui = e[["message"]], type = "error", session)
+          showNotification(e[["message"]], type = "error", session = session)
         }
       )
     })
 
     # add file options depending on file type
-    renderUI({
-      req(loadedData(), input[["fileType"]])
+    observe({
+      req(loadedData())
 
-      df <- loadedData()
-      if (inherits(df, "sf")) {
-        cols <- names(st_drop_geometry(df))
-      } else {
-        cols <- names(df)
-      }
-      accordion(
-        accordion_panel(
-          "Select Columns to Keep",
-          checkboxGroupInput(ns("selColumns"), NULL, choices = cols, selected = cols)
-        ),
-        #### // TODO: add option to convert to sf for csv files
-        if (input[["fileType"]] == "csv") {
-          accordion_panel("Convert to Sf Class")
-        }
+      cols <- NamesDropGeom(loadedData())
+
+      accordion_panel_update(
+        id = "accordion",
+        target = "selcols",
+        session = session,
+
+        checkboxGroupInput(ns("selColumns"), NULL, choices = cols, selected = cols)
       )
-    }) -> output[["fileOptions"]]
+    })
+
+    observe({
+      req(cleanedData(), input[["fileType"]] == "csv", input[["files"]])
+
+      cols <- names(cleanedData())
+
+      accordion_panel_update(
+        id = "accordion",
+        target = "convertsf",
+        session = session,
+
+        layout_columns(
+          selectInput(ns("coord1"), "X / Longitude Column", choices = cols),
+          selectInput(ns("coord2"), "Y / Latitude Column", choices = cols)
+        ),
+        layout_columns(
+          textInput(ns("crs"), NULL, placeholder = "CRS Code"),
+          actionButton(ns("convertSF"), "Convert to SF", disabled = TRUE)
+        )
+      )
+    })
 
     # filter columns if needed
     observeEvent(input[["selColumns"]], {
       req(loadedData())
 
       df <- loadedData()
-      if (inherits(df, "sf")) {
-        cols <- names(st_drop_geometry(df))
-      } else {
-        cols <- names(df)
-      }
-      drop_cols <- setdiff(cols, input[["selColumns"]])
+      drop_cols <- setdiff(NamesDropGeom(df), input[["selColumns"]])
 
       if (length(drop_cols) > 0) {
-        for (c in drop_cols) {
-          df[[c]] <- NULL
-        }
+        df[drop_cols] <- NULL
       }
 
       cleanedData(df)
+    })
+
+    # convert to sf
+    observe({
+      req(cleanedData(), input[["crs"]], input[["coord1"]], input[["coord2"]])
+
+      updateActionButton(session, "convertSF", disabled = FALSE)
+    })
+
+    observeEvent(input[["convertSF"]], {
+      req(
+        !inherits(cleanedData(), "sf"),
+        input[["crs"]],
+        input[["coord1"]],
+        input[["coord2"]]
+      )
+
+      df <- cleanedData()
+
+      crs <- as.numeric(input[["crs"]])
+      coords <- c(input[["coord1"]], input[["coord2"]])
+
+      tryCatch(
+        {
+          df <- st_as_sf(df, coords = coords, crs = crs)
+
+          cleanedData(df)
+        },
+        error = function(e) {
+          showNotification(e[["message"]])
+        }
+      )
     })
 
     # preview the data after cleanup
