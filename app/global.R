@@ -35,12 +35,38 @@ ReadFile <- function(filePath, fileType) {
     # this only give the first found file in alphabetical order !!
     shpPath <- shpFiles[1]
     data <- st_read(shpPath, quiet = TRUE)
-
   } else if (fileType == "geojson") {
     data <- st_read(filePath, quiet = TRUE)
   } else if (fileType == "csv") {
-    data <- fread(filePath)
+    data <- read.csv(filePath)
   }
 
   return(data)
 }
+
+NamesDropGeom <- function(df) {
+  if (inherits(df, "sf")) {
+    cols <- names(st_drop_geometry(df))
+  } else {
+    cols <- names(df)
+  }
+  return(cols)
+}
+
+#' calculate bin boundaries based on equal distance method
+EquidistantBins <- function(distances, nbins, cutoff = NULL) {
+  d_min <- min(distances)
+  d_max <- if (!is.null(cutoff)) {
+    min(cutoff, max(distances))
+  } else {
+    max(distances)
+  }
+
+  boundaries <- seq(d_min, d_max, length.out = nbins + 1)
+
+  return(boundaries)
+}
+
+ExplonentialBins <- function() {}
+QuantilesBins <- function() {}
+EquidistantBins <- function() {}
