@@ -2,12 +2,10 @@ page_navbar(
   title = "Empirical Variogram Analysis Dashboard",
   window_title = "Interactive Spatial Correlation Visualizer",
 
-  nav_panel(title = "Upload Data", FileHandlerUI("uploadFiles")),
-  nav_panel(title = "Transform/Reshape Data"),
-  nav_panel(title = "Variogram"),
+  nav_panel(title = "DATA", FileUploadUI("upload_files")),
+  nav_panel(title = "VARIOGRAM", VariogramUI("variogram")),
   nav_spacer(),
-  nav_panel(title = "About"),
+  nav_panel(title = "ABOUT"),
 
-  theme = myTheme,
-  useShinyjs()
+  theme = myTheme
 )

@@ -1,3 +1,5 @@
 function(input, output, session) {
-  uploadedData <- FileHandlerServer("uploadFiles")
+  uploaded_data <- FileUploadServer("upload_files")
+
+  VariogramServer("variogram", reactive(uploaded_data()))
 }
