@@ -1,0 +1,33 @@
+// Custom rules layered on top of the compiled Bootstrap theme
+
+.sidebar-help {
+  font-size: 0.8rem;
+  color: $gray-600;
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.section-label {
+  font-weight: 600;
+  color: $primary;
+  margin-bottom: 0.25rem;
+}
+
+.method-info-box {
+  background-color: rgba($primary, 0.06);
+  border-left: 3px solid $primary;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+table.dataTable tr.best-method-row {
+  background-color: rgba(#2e8b57, 0.15) !important;
+  font-weight: 600;
+}
+
+.glossary-term {
+  color: $primary;
+  font-weight: 600;
+}
